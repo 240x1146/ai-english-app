@@ -1,16 +1,13 @@
 import streamlit as st
 import time
-from openai import OpenAI
+import random
 
 # -------------------------
 # 設定
 # -------------------------
 st.set_page_config(page_title="AI English Learning", layout="wide")
 
-# APIキー（Streamlit CloudではSecretsから取得）
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-st.title("🧠 AI英語学習支援アプリ")
+st.title("🧠 AI英語学習支援アプリ（プロトタイプ）")
 
 st.markdown("""
 このアプリは以下の理論に基づいて設計されています：
@@ -51,50 +48,57 @@ def calculate_score(text):
     return min(100, words * 5 + unique_words * 3)
 
 # -------------------------
-# AI応答生成
+# 疑似AI（教育設計ベース）
 # -------------------------
-def generate_ai_response(user_input, level, history):
+def generate_fake_ai(user_input, level):
+    
+    follow_ups = {
+        "beginner": [
+            "Can you say that again in a simple way?",
+            "Why do you like it?",
+            "Can you add one more sentence?"
+        ],
+        "intermediate": [
+            "Why do you think so?",
+            "Can you explain more details?",
+            "How would you say that differently?"
+        ],
+        "advanced": [
+            "What are the deeper reasons behind that?",
+            "How does that idea relate to your experience?",
+            "Can you compare it with another example?"
+        ]
+    }
 
-    messages = [
-        {
-            "role": "system",
-            "content": f"""
-You are an English learning partner.
+    # 簡易フィードバック
+    words = user_input.split()
+    
+    if len(words) < 3:
+        correction = "Try to make a longer sentence."
+    elif not user_input.endswith("."):
+        correction = "Add a period at the end."
+    else:
+        correction = "Good sentence! Try using more complex expressions."
 
-Level: {level}
+    # 改善例（簡易）
+    improved = user_input.capitalize()
+    if not improved.endswith("."):
+        improved += "."
 
-Rules:
-- Encourage the learner
-- Do NOT say "wrong"
-- Suggest better sentence
-- Ask follow-up questions (WHY/HOW)
+    response = f"""
+👍 Nice! I understand your idea.
 
-Beginner:
-- Very simple English
+✨ Better example:
+{improved}
 
-Intermediate:
-- Natural English + alternative expressions
+💡 Suggestion:
+{correction}
 
-Advanced:
-- Deep and abstract questions
+❓ Question:
+{random.choice(follow_ups[level])}
 """
-        }
-    ]
 
-    # 過去の会話（直近3つ）
-    for h in history[-3:]:
-        messages.append({"role": "user", "content": h["user"]})
-        messages.append({"role": "assistant", "content": h["ai"]})
-
-    messages.append({"role": "user", "content": user_input})
-
-    response = client.chat.completions.create(
-        model="gpt-5-mini",
-        messages=messages,
-        temperature=0.7
-    )
-
-    return response.choices[0].message.content
+    return response
 
 # -------------------------
 # UI（サイドバー）
@@ -103,8 +107,10 @@ st.sidebar.title("📚 学習メニュー")
 mode = st.sidebar.radio("モード選択", ["会話トレーニング", "ライティング分析"])
 
 # -------------------------
-# メイン
+# 入力
 # -------------------------
+st.info("例：I like music")
+
 user_input = st.text_input("英語で入力してください")
 
 if st.button("送信") and user_input:
@@ -113,8 +119,7 @@ if st.button("送信") and user_input:
     level = estimate_level(user_input, hesitation_time)
     score = calculate_score(user_input)
 
-    with st.spinner("AIが考え中..."):
-        ai_reply = generate_ai_response(user_input, level, st.session_state.history)
+    ai_reply = generate_fake_ai(user_input, level)
 
     st.session_state.history.append({
         "user": user_input,
@@ -154,7 +159,7 @@ if len(st.session_state.history) > 0:
     st.line_chart(scores)
 
     if sum(hesitations)/len(hesitations) > 5:
-        st.warning("難易度が少し高い可能性があります → AIが調整中")
+        st.warning("難易度が少し高い可能性があります → レベル調整中")
     else:
         st.success("良いペースで学習できています！")
 else:
