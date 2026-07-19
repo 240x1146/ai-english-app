@@ -3,18 +3,18 @@ import time
 import random
 
 # -------------------------
-# 設定
+# 初期設定
 # -------------------------
 st.set_page_config(page_title="AI English Learning", layout="wide")
 
-st.title("🧠 AI英語学習支援アプリ（プロトタイプ）")
+st.title("🧠 AI英語学習支援アプリ（完成版プロトタイプ）")
 
 st.markdown("""
-このアプリは以下の理論に基づいて設計されています：
-- 個別最適化学習
-- 建設的相互作用
-- 行動分析（躊躇時間）
-- 自己調整学習
+## このアプリの特徴
+- 学習行動を分析（躊躇時間）
+- 個別にレベル調整
+- AI風対話で思考を深める
+- 学習の成長を可視化
 """)
 
 # -------------------------
@@ -26,12 +26,25 @@ if "history" not in st.session_state:
 if "start_time" not in st.session_state:
     st.session_state.start_time = time.time()
 
+if "daily_goal" not in st.session_state:
+    st.session_state.daily_goal = random.choice([
+        "3文以上書こう",
+        "Whyで答えてみよう",
+        "5単語以上使おう"
+    ])
+
+# -------------------------
+# サイドバー
+# -------------------------
+st.sidebar.title("📚 学習メニュー")
+mode = st.sidebar.radio("モード選択", ["会話トレーニング", "ライティング分析"])
+st.sidebar.markdown(f"🎯 今日の目標: {st.session_state.daily_goal}")
+
 # -------------------------
 # レベル推定
 # -------------------------
 def estimate_level(text, hesitation):
     word_count = len(text.split())
-
     if hesitation > 6 or word_count < 4:
         return "beginner"
     elif word_count < 10:
@@ -48,66 +61,71 @@ def calculate_score(text):
     return min(100, words * 5 + unique_words * 3)
 
 # -------------------------
-# 疑似AI（教育設計ベース）
+# 弱点分析
+# -------------------------
+def analyze_weakness(history):
+    if len(history) == 0:
+        return "まだ分析データがありません"
+
+    short_sentences = sum(1 for h in history if len(h["user"].split()) < 5)
+
+    if short_sentences > len(history) / 2:
+        return "👉 文章が短い傾向があります"
+    else:
+        return "👉 表現は安定しています"
+
+# -------------------------
+# 疑似AI（コーチ型）
 # -------------------------
 def generate_fake_ai(user_input, level):
-    
+
+    coaching = ["Great job!", "Nice try!", "Keep going!"]
+
     follow_ups = {
         "beginner": [
-            "Can you say that again in a simple way?",
             "Why do you like it?",
             "Can you add one more sentence?"
         ],
         "intermediate": [
             "Why do you think so?",
-            "Can you explain more details?",
-            "How would you say that differently?"
+            "Can you explain more?"
         ],
         "advanced": [
-            "What are the deeper reasons behind that?",
-            "How does that idea relate to your experience?",
-            "Can you compare it with another example?"
+            "What are the deeper reasons?",
+            "Can you compare this idea?"
         ]
     }
 
-    # 簡易フィードバック
     words = user_input.split()
-    
+
     if len(words) < 3:
         correction = "Try to make a longer sentence."
     elif not user_input.endswith("."):
         correction = "Add a period at the end."
     else:
-        correction = "Good sentence! Try using more complex expressions."
+        correction = "Good! Try more complex expressions."
 
-    # 改善例（簡易）
     improved = user_input.capitalize()
     if not improved.endswith("."):
         improved += "."
 
-    response = f"""
-👍 Nice! I understand your idea.
+    return f"""
+💬 Coach: {random.choice(coaching)}
 
-✨ Better example:
+👍 Good point!
+
+✨ Improved:
 {improved}
 
-💡 Suggestion:
+💡 Feedback:
 {correction}
 
 ❓ Question:
 {random.choice(follow_ups[level])}
 """
 
-    return response
-
 # -------------------------
-# UI（サイドバー）
-# -------------------------
-st.sidebar.title("📚 学習メニュー")
-mode = st.sidebar.radio("モード選択", ["会話トレーニング", "ライティング分析"])
-
-# -------------------------
-# 入力
+# 入力UI
 # -------------------------
 st.info("例：I like music")
 
@@ -132,21 +150,34 @@ if st.button("送信") and user_input:
     st.session_state.start_time = time.time()
 
 # -------------------------
-# チャット表示
+# 会話モード
 # -------------------------
-st.subheader("💬 会話履歴")
+if mode == "会話トレーニング":
 
-for chat in reversed(st.session_state.history):
-    st.markdown(f"**You:** {chat['user']}")
-    st.markdown(f"**AI:** {chat['ai']}")
-    st.markdown(f"⏱ Hesitation: {chat['hesitation']:.2f} sec")
-    st.markdown(f"📈 Level: {chat['level']} / Score: {chat['score']}")
-    st.markdown("---")
+    st.subheader("💬 会話履歴")
+
+    for chat in reversed(st.session_state.history):
+        st.markdown(f"**You:** {chat['user']}")
+        st.markdown(f"**AI:** {chat['ai']}")
+        st.markdown(f"⏱ {chat['hesitation']:.2f} sec / 📈 {chat['level']} / ⭐ {chat['score']}")
+        st.markdown("---")
+
+# -------------------------
+# ライティング分析モード
+# -------------------------
+if mode == "ライティング分析":
+
+    st.subheader("✍ ライティング分析")
+
+    if user_input:
+        st.write("スコア:", calculate_score(user_input))
+
+    st.warning(analyze_weakness(st.session_state.history))
 
 # -------------------------
 # ダッシュボード
 # -------------------------
-st.subheader("📊 学習分析")
+st.subheader("📊 学習ダッシュボード")
 
 if len(st.session_state.history) > 0:
     scores = [c["score"] for c in st.session_state.history]
@@ -158,15 +189,16 @@ if len(st.session_state.history) > 0:
 
     st.line_chart(scores)
 
-    if sum(hesitations)/len(hesitations) > 5:
-        st.warning("難易度が少し高い可能性があります → レベル調整中")
-    else:
-        st.success("良いペースで学習できています！")
+    if len(scores) > 1:
+        if scores[-1] > scores[0]:
+            st.success("📈 成長しています！")
+        else:
+            st.info("📊 継続して改善しましょう！")
 else:
     st.write("まだデータがありません")
 
 # -------------------------
 # ナッジ機能
 # -------------------------
-if time.time() - st.session_state.start_time > 30:
-    st.warning("⏰ 1分だけ英語やってみよう！")
+if time.time() - st.session_state.start_time > 20:
+    st.warning("⏰ 今がチャンス！1文だけ書いてみよう！")
