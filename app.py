@@ -7,12 +7,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# セッション状態の初期化（チャット履歴や学習データの保持）
+# セッション状態の初期化
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant", 
-            "content": "Hi there! 👋 Welcome back. How was your day? Tell me what you did today in one sentence! (Don't worry about mistakes!)"
+            "content": "Hi there! 👋 Welcome back. How was your day? Tell me what you did today in one sentence! (Don't worry about mistakes!)\n\n"
+                       "--- \n"
+                       "（こんにちは！👋 おかえりなさい。今日はどんな1日でしたか？今日したことを1つの文で教えてね！間違いは気にしなくて大丈夫だよ！）"
         }
     ]
 if "streak" not in st.session_state:
@@ -35,7 +37,7 @@ with tab1:
     
     with col1:
         st.subheader("Situation-Adaptive AI Conversation")
-        st.info("💡 採点者ではなく「対等な共同編集者」として、4つのステップ（心理的安全性・モデリング・足場かけ・建設的相互作用）で発話を優しく引き出します。")
+        st.info("💡 4つのステップ（心理的安全性・モデリング・足場かけ・建設的相互作用）に沿って、英語と日本語を同時に出力します。")
         
         # チャット履歴の描画
         for msg in st.session_state.messages:
@@ -52,36 +54,42 @@ with tab1:
 
         # チャット入力欄
         if user_input := st.chat_input("ここに英文を入力してね... (例: I went shopping / I watched a movie)"):
-            # 1. ユーザー入力を履歴に追加
             st.session_state.messages.append({"role": "user", "content": user_input})
             
-            # --- 4ステップ対話ロジックの実行 ---
-            # ステップ1: 心理的安全性（受容と共感）
-            acceptance = f"That sounds amazing! I'm so glad you shared that with me. 😊\n\n"
+            # --- 4ステップ対話ロジック（日英ハイブリッド版） ---
             
-            # ステップ2: ポジティブな拡張・モデリング（さりげなく自然な正しい表現をお手本として提示）
-            modeling = f"So, you mean you **enjoyed** '{user_input}' today? That's a wonderful way to spend your time!\n\n"
+            # ステップ1: 心理的安全性（受容と共感）
+            en_1 = f"That sounds amazing! I'm so glad you shared that with me. 😊\n"
+            ja_1 = f"（それは素敵ですね！教えてくれてとても嬉しいです。😊）\n\n"
+            
+            # ステップ2: ポジティブな拡張・モデリング（正しい表現のお手本提示）
+            en_2 = f"So, you mean you **enjoyed** '{user_input}' today? That's a wonderful way to spend your time!\n"
+            ja_2 = f"（つまり、今日は「{user_input}」を**楽しんだ**のですね？とても素晴らしい時間の過ごし方です！）\n\n"
             
             # ステップ3: 行動ログに応じた足場かけ（Scaffolding）
             if "少し迷って" in hesitation_level:
-                # 躊躇を検知した場合、心理的負担を下げるために「型」をプレゼント
-                scaffolding = "💡 **AIからのヒント（足場かけ）:**\nつぎは、**'It was [感想（fun / relaxing / exciting）].'** の型を使ってあなたの気持ちを教えてね！\n\n"
+                en_3 = "💡 **AI Hints:**\nNext, try to use this pattern to tell me your feelings: **'It was [感想（fun / relaxing / exciting）].'**\n"
+                ja_3 = "💡 **日本語解説:**\n入力に少し迷ったみたいだね。次は、**'It was [感想].'**（楽しかった、リラックスした、ワクワクしたなど）の型を使って気持ちを教えてね！\n\n"
                 st.session_state.vocab_count += 2
             else:
-                # 躊躇がない場合はヒントをスキップし、自発性を促す
-                scaffolding = ""
+                en_3 = ""
+                ja_3 = ""
                 st.session_state.vocab_count += 4
                 
             # ステップ4: 建設的相互作用（思考を深掘りする問いかけ）
-            question = "💬 **AIからの深掘り質問:**\nWhat was the most interesting part of it? Tell me more!"
+            en_4 = "💬 **AI Question:**\nWhat was the most interesting part of it? Tell me more!"
+            ja_4 = "💬 **日本語訳:**\nそれのどこが一番おもしろかった？もっと詳しく教えて！"
             
-            # 全てのステップを結合してAIの返答を作成
-            ai_reply = acceptance + modeling + scaffolding + question
+            # 英語セクションと日本語セクションを綺麗に分けて結合
+            ai_reply = (
+                "### 🇬🇧 AI Response\n"
+                f"{en_1}{en_2}{en_3}{en_4}\n\n"
+                "--- \n"
+                "### 🇯🇵 日本語の翻訳とサポート\n"
+                f"{ja_1}{ja_2}{ja_3}{ja_4}"
+            )
             
-            # 2. AIの返答を履歴に追加
             st.session_state.messages.append({"role": "assistant", "content": ai_reply})
-            
-            # 画面を更新して最新のやりとりを表示
             st.rerun()
 
     with col2:
@@ -99,17 +107,14 @@ with tab2:
     st.subheader("Self-Regulated Learning Dashboard")
     st.write("点数で裁くのではなく、**継続やプロセス**を可視化して学習者の内発的動機づけを高めます。")
     
-    # メトリクスの表示
     m1, m2, m3 = st.columns(3)
     m1.metric(label="🔥 現在の継続日数", value=f"{st.session_state.streak} 日連続", delta="目標まであと2日")
     m2.metric(label="🔤 今日使った新しい語彙数", value=f"{st.session_state.vocab_count} 語", delta="+4語 (昨日比)")
     m3.metric(label="💬 AIとの対話の深さ", value="Level 3 (発展レベル)", delta="Good")
     
-    # グラフのシミュレーション
     st.write("### 📈 今週の学習着手ハードル（躊躇時間）の推移")
     st.caption("システムが裏側で計測している「入力にかかった時間（間）」のデータです。使い続けることで心理的ハードルが下がり、躊躇時間が短くなっていることがわかります。")
     
-    # ダミーの躊躇時間データ（やりとりが進むと今日データが更新される演出）
     chart_data = {
         "月曜日": 18,
         "火曜日": 15,
